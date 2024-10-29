@@ -1,74 +1,56 @@
 import numpy as np
+import pandas as pd
 import matplotlib.pyplot as plt
-from sklearn.linear_model import LinearRegression
+from time import time
 from sklearn.metrics import mean_squared_error
-import time
+from scipy.linalg import pinv
+from sklearn.linear_model import LinearRegression
 
-# Step 1: Define or Load Dataset
-# For demonstration, we will create a synthetic dataset with a linear relationship
-np.random.seed(0)
-X = 2 * np.random.rand(100, 1)  # Predictor variable
-y = 4 + 3 * X + np.random.randn(100, 1)  # Response variable with noise
+# Load the dataset
+data = pd.read_csv('insurance.csv')
+X = data['bmi'].values.reshape(-1, 1)
+y = data['charges'].values
 
-# Adding a column of ones to X for the intercept term
-X_b = np.c_[np.ones((100, 1)), X]
+# Prepare the design matrix by adding a bias term
+X_b = np.c_[np.ones((X.shape[0], 1)), X]
 
-# Step 2: Implement Linear Regression using Normal Equation (NumPy)
+# Calculate weights using the pseudo-inverse formula
+start_time = time()
+theta_optimal = pinv(X_b).dot(y)
+computation_time = time() - start_time
 
-# Calculate weights using the normal equation
-start_time = time.time()
-theta_best = np.linalg.inv(X_b.T.dot(X_b)).dot(X_b.T).dot(y)
-numpy_time = time.time() - start_time
+print("Optimal weights:", theta_optimal)
+print("Computation Time (seconds):", computation_time)
 
-# Extract intercept and slope
-intercept_numpy, slope_numpy = theta_best[0][0], theta_best[1][0]
+# Make predictions and plot the regression line
+y_pred = X_b.dot(theta_optimal)
 
-print("NumPy Implementation")
-print(f"Intercept: {intercept_numpy}, Slope: {slope_numpy}")
-print(f"Computation Time: {numpy_time:.6f} seconds")
-
-# Step 3: Predict Outcomes Using NumPy Model
-y_pred_numpy = X_b.dot(theta_best)
-
-# Step 4: Plot the Results
-plt.scatter(X, y, color="blue", label="Data Points")
-plt.plot(X, y_pred_numpy, color="red", linewidth=2, label="NumPy Regression Line")
-plt.xlabel("Predictor (X)")
-plt.ylabel("Response (y)")
+plt.plot(X, y, "b.", label="Data points")
+plt.plot(X, y_pred, "r-", label="Regression line")
+plt.xlabel("BMI")
+plt.ylabel("Insurance Charges")
 plt.legend()
-plt.title("Linear Regression with NumPy")
+plt.title("Linear Regression using Pseudo-Inverse")
 plt.show()
 
-# Step 5: Implement Linear Regression using Scikit-learn for Comparison
-start_time = time.time()
+# Evaluate with Mean Squared Error
+mse_custom = mean_squared_error(y, y_pred)
+print("Mean Squared Error (Custom Implementation):", mse_custom)
+
+# Comparison with Scikit-Learn's Linear Regression
+start_time_sklearn = time()
 lin_reg = LinearRegression()
 lin_reg.fit(X, y)
-sklearn_time = time.time() - start_time
-
-# Scikit-learn results
-intercept_sklearn, slope_sklearn = lin_reg.intercept_[0], lin_reg.coef_[0][0]
+computation_time_sklearn = time() - start_time_sklearn
 y_pred_sklearn = lin_reg.predict(X)
-
-print("\nScikit-learn Implementation")
-print(f"Intercept: {intercept_sklearn}, Slope: {slope_sklearn}")
-print(f"Computation Time: {sklearn_time:.6f} seconds")
-
-# Step 6: Compare Performance Metrics
-mse_numpy = mean_squared_error(y, y_pred_numpy)
 mse_sklearn = mean_squared_error(y, y_pred_sklearn)
 
-print("\nPerformance Comparison")
-print(f"Mean Squared Error (NumPy): {mse_numpy:.6f}")
-print(f"Mean Squared Error (Scikit-learn): {mse_sklearn:.6f}")
-print(f"Difference in MSE: {abs(mse_numpy - mse_sklearn):.6f}")
-print(f"Difference in Computation Time: {abs(numpy_time - sklearn_time):.6f} seconds")
+print("\nScikit-Learn Linear Regression")
+print("Optimal Weights (Intercept and Slope):", np.r_[lin_reg.intercept_, lin_reg.coef_])
+print("Mean Squared Error (Scikit-Learn):", mse_sklearn)
+print("Computation Time (seconds):", computation_time_sklearn)
 
-# Additional Plot for Comparison
-plt.scatter(X, y, color="blue", label="Data Points")
-plt.plot(X, y_pred_numpy, color="red", linestyle="--", label="NumPy Regression Line")
-plt.plot(X, y_pred_sklearn, color="green", linestyle="-", label="Scikit-learn Regression Line")
-plt.xlabel("Predictor (X)")
-plt.ylabel("Response (y)")
-plt.legend()
-plt.title("Comparison of NumPy and Scikit-learn Regression Lines")
-plt.show()
+# Comparison of Implementations
+print("\nComparison of Implementations:")
+print("Difference in Mean Squared Error:", abs(mse_custom - mse_sklearn))
+print("Difference in Computation Time:", abs(computation_time - computation_time_sklearn))
